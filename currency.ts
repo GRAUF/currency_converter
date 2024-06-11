@@ -2,68 +2,102 @@
 
 import inquirer from 'inquirer';
 import chalk from 'chalk';
-import axios from 'axios';
+import Table from 'cli-table3';
 
-const correctPasscode = '1234'; // Set your personal passcode here
-
-const currencies = ['USD', 'EUR', 'GBP', 'JPY', 'AUD'];
-
-const getCurrencyRates = async () => {
-  try {
-    const response = await axios.get('https://api.exchangerate-api.com/v4/latest/USD');
-    return response.data.rates;
-  } catch (error) {
-    console.error(chalk.red('Error fetching exchange rates'), error);
-    return null;
-  }
+console.log(chalk.yellow('<<<<<<<<||||<<<<<<<<<< $$$$$$$$$$$$$$$$$$$$$$ >>>>>>>>||||>>>>>>||||||||>>>>>>>>>>'));
+console.log(chalk.green.bold(' <<<<<<<<||||||>>>>>> Welcome to Currency Converter Store! >>>>>>>||||||<<<<<<'));
+console.log(chalk.yellow('<<<<<<<|||<<<<<<<===== $$$$$$$$$$$$$$$$$$$$$$ ===== >>>>>>>>|||>>>>>>>>>>>>>>>>>>>'));
+console.log(chalk.green.bold(' <<<<<<<<||||||>>>>>> Thanks for visiting! >>>||||||<<<<  <|||||||<<<<<<<<<<<<'));
+console.log(chalk.yellow('<<<<<<<|||<<<<<<<===== $$$$$$$$$$$$$$$$$$$$$$ ===== >>>>>>>>|||>>>>>>>>>||||||||||'));
+console.log(chalk.green.bold(' <<<<<<<<|||>>>>>> ||||||||||========||||||||||>>>>>>>||||||<<<<<<<<<<<<<<<<<<'));
+console.log("\n");
+// Define exchange rates (as of a specific date for demonstration purposes)
+const exchangeRates: { [key: string]: number } = {
+    USD: 1.00,
+    EUR: 299.04,
+    GBP: 1.33,
+    INR: 3.30,
+    AUD: 183.81,
+    CAD: 202.35,
+    SGD: 205.75,
+    CHF: 309.88,
+    MYR: 4.15,
+    JPY: 1.77,
+    PKR: 278.50,
+    SAR: 74.25,
+    AFGHANI:4.01,
+    THAKKA:2.37
 };
 
-const askForPasscode = async () => {
-  const answer = await inquirer.prompt({
-    type: 'password',
-    name: 'passcode',
-    message: 'Enter your personal passcode:',
-  });
+// List of top currencies
+const currencies: string[] = Object.keys(exchangeRates);
 
-  if (answer.passcode !== correctPasscode) {
-    console.log(chalk.red('Incorrect passcode. Access denied.'));
-    process.exit(1);
-  }
+const displayTable = (): void => {
+    const table = new Table({
+        head: ['Currency', 'Rate (per USD)'],
+        colWidths: [10, 20]
+    });
+
+    currencies.forEach((currency: string) => {
+        table.push([currency, exchangeRates[currency].toString()]);
+    });
+
+    console.log(table.toString());
 };
 
-const askForCurrencyAmounts = async (rates: Record<string, number>) => {
-  const questions = currencies.map(currency => ({
-    type: 'input',
-    name: currency,
-    message: `Enter amount in ${currency}:`,
-    validate: (input: string) => !isNaN(parseFloat(input)) || 'Please enter a valid number',
-  }));
+const convertCurrency = async (): Promise<void> => {
+    const { fromCurrency }: { fromCurrency: string } = await inquirer.prompt([
+        {
+            type: 'list',
+            name: 'fromCurrency',
+            message: 'Select the currency you want to convert from:',
+            choices: currencies
+        }
+    ]);
 
-  const answers = await inquirer.prompt(questions);
-  let totalInUSD = 0;
+    const { toCurrency }: { toCurrency: string } = await inquirer.prompt([
+        {
+            type: 'list',
+            name: 'toCurrency',
+            message: 'Select the currency you want to convert to:',
+            choices: currencies.filter((currency: string) => currency !== fromCurrency)
+        }
+    ]);
 
-  for (const currency of currencies) {
-    const amount = parseFloat(answers[currency]);
-    const rate = rates[currency];
-    const amountInUSD = amount / rate;
-    totalInUSD += amountInUSD;
-  }
+    const { amount }: { amount: string } = await inquirer.prompt([
+        {
+            type: 'input',
+            name: 'amount',
+            message: `Enter the amount you want to convert from ${fromCurrency} to ${toCurrency}:`,
+            validate: (input: string) => !isNaN(parseFloat(input)) || 'Please enter a valid number'
+        }
+    ]);
 
-  console.log(chalk.green(`Total value in USD: ${totalInUSD.toFixed(2)}`));
+    const convertedAmount = (parseFloat(amount) / exchangeRates[fromCurrency]) * exchangeRates[toCurrency];
+    
+    console.log(chalk.green(`\n${amount} ${fromCurrency} is equal to ${convertedAmount.toFixed(2)} ${toCurrency}\n`));
+
+    const { nextAction }: { nextAction: string } = await inquirer.prompt([
+        {
+            type: 'list',
+            name: 'nextAction',
+            message: 'What would you like to do next?',
+            choices: ['Convert another currency', 'Exit']
+        }
+    ]);
+
+    if (nextAction === 'Convert another currency') {
+        await convertCurrency();
+    } else {
+        console.log(chalk.blue('Thank you for using the currency converter!'));
+    }
 };
 
-const main = async () => {
-  await askForPasscode();
-  
-  const rates = await getCurrencyRates();
-  if (!rates) return;
-
-  console.log(chalk.blue('Current Exchange Rates (Base: USD):'));
-  currencies.forEach(currency => {
-    console.log(chalk.yellow(`${currency}: Buy - ${rates[currency]}, Sell - ${1 / rates[currency]}`));
-  });
-
-  await askForCurrencyAmounts(rates);
+const main = async (): Promise<void> => {
+    console.log(chalk.yellow('Welcome to the Currency Converter!'));
+    displayTable();
+    await convertCurrency();
 };
 
-main();
+main().catch(error => console.error(error));
+
